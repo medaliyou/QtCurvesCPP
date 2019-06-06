@@ -5,10 +5,11 @@
 RenderArea::RenderArea(QWidget *parent) :
     QWidget(parent),
     mBackgroundColor (0, 0, 255),
-    mShapeColor (255, 255, 255),
-    mShape (Fancy)
+    mPen(Qt::white),
+    mShape (Circle)
 
 {
+    mPen.setWidth(2);
     on_shape_changed();
 }
 QSize RenderArea::minimumSizeHint() const
@@ -168,7 +169,7 @@ void RenderArea::paintEvent(QPaintEvent *event)
     painter.setRenderHint(QPainter::Antialiasing, true );
 
     painter.setBrush(mBackgroundColor);
-    painter.setPen(mShapeColor);
+    painter.setPen(mPen);
 
     //Drawing area
     painter.drawRect(this->rect());
