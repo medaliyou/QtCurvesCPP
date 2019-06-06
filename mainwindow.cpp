@@ -26,6 +26,7 @@ void MainWindow::update_ui()
 
 }
 
+
 void MainWindow::on_btnAstroid_clicked()
 {
     // change background color for render area
@@ -55,10 +56,15 @@ void MainWindow::on_btnHypoCycloid_clicked()
     update_ui();
 }
 
+
+
+
 void MainWindow::on_btnLine_clicked()
 {
     this->ui->renderArea->setShape(RenderArea::Line);
     this->ui->renderArea->repaint();
+    update_ui();
+
 }
 
 void MainWindow::on_spinScale_valueChanged(double scale)
@@ -87,4 +93,28 @@ void MainWindow::on_btnLineColor_clicked()
 {
     QColor color = QColorDialog::getColor(ui->renderArea->shapeColor(), this, "Select Color");
     ui->renderArea->setShapeColor(color);
+}
+
+
+
+
+void MainWindow::on_btnEllipse_clicked()
+{
+    this->ui->renderArea->setShape(RenderArea::Ellipse);
+    this->ui->renderArea->repaint();
+    update_ui();
+}
+
+void MainWindow::on_btnFancy_clicked()
+{
+    this->ui->renderArea->setShape(RenderArea::Fancy);
+    this->ui->renderArea->repaint();
+    update_ui();
+}
+
+void MainWindow::on_btnCircle_clicked()
+{
+    this->ui->renderArea->setShape(RenderArea::Circle);
+    this->ui->renderArea->repaint();
+    update_ui();
 }

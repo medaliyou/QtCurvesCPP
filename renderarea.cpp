@@ -6,7 +6,7 @@ RenderArea::RenderArea(QWidget *parent) :
     QWidget(parent),
     mBackgroundColor (0, 0, 255),
     mShapeColor (255, 255, 255),
-    mShape (Astroid)
+    mShape (Fancy)
 
 {
     on_shape_changed();
@@ -45,11 +45,56 @@ void RenderArea::on_shape_changed(){
             mIntervalLength = 1;
             mScale = 100;
             mStepCount = 128;
+            break;
+        case Circle:
+           mIntervalLength = 2 * M_PI;
+           mScale = 165;
+           mStepCount = 128;
+            break;
+        case Ellipse:
+            mIntervalLength = 2 * M_PI;
+            mScale = 75;
+            mStepCount = 256;
+        break;
+        case Fancy:
+            mIntervalLength = 12 * M_PI;
+            mScale = 10;
+            mStepCount = 512;
+        break;
         default:
             break;
         }
 }
-
+QPointF RenderArea::compute(float t)
+{
+    switch (mShape){
+        case Astroid:
+            return compute_astroid(t);
+            break;
+        case Cycloid:
+            return compute_cycloid(t);
+            break;
+        case HuygensCycloid:
+            return compute_huygens(t);
+            break;
+        case HypoCycloid:
+            return compute_hypo(t);
+            break;
+        case Line:
+            return compute_line(t);
+        case Circle:
+            return compute_circle(t);
+            break;
+        case Ellipse:
+            return compute_ellipse(t);
+        case Fancy:
+            return compute_fancy(t);
+            break;
+        default:
+            break;
+        }
+    return QPointF(0, 0);
+}
 QPointF RenderArea::compute_astroid(float t){
     float cos_t = cos(t);
     float sin_t = sin(t);
@@ -82,29 +127,24 @@ QPointF RenderArea::compute_line(float t){
     return QPointF(1 - t, 1 - t);
 
 }
-QPointF RenderArea::compute(float t)
-{
-    switch (mShape){
-        case Astroid:
-            return compute_astroid(t);
-            break;
-        case Cycloid:
-            return compute_cycloid(t);
-            break;
-        case HuygensCycloid:
-            return compute_huygens(t);
-            break;
-        case HypoCycloid:
-            return compute_hypo(t);
-            break;
-        case Line:
-            return compute_line(t);
-            break;
-        default:
-            break;
-        }
-    return QPointF(0, 0);
+QPointF RenderArea::compute_circle(float t){
+    return QPointF(cos(t),sin(t));
 }
+QPointF RenderArea::compute_ellipse(float t){
+    float a = 2;
+    float b = 1.1;
+    return QPointF(a * cos(t),b * sin(t));
+}
+QPointF RenderArea::compute_fancy(float t)
+{
+    float a = 11;
+    float b = 6;
+    float y = (a * sin(t) - b * sin((a/b)*t));
+    float x = (a * cos(t) - b * cos((a/b)*t));
+    return QPointF(x, y);
+
+}
+
 void RenderArea::paintEvent(QPaintEvent *event)
 {
     Q_UNUSED(event);
