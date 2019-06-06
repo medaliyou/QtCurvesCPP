@@ -61,6 +61,11 @@ void RenderArea::on_shape_changed(){
             mScale = 10;
             mStepCount = 512;
         break;
+        case Starfish:
+            mIntervalLength = 6 * M_PI;
+            mScale = 25;
+            mStepCount = 256;
+    break;
         default:
             break;
         }
@@ -89,6 +94,9 @@ QPointF RenderArea::compute(float t)
             return compute_ellipse(t);
         case Fancy:
             return compute_fancy(t);
+            break;
+        case Starfish:
+            return compute_starfish(t);
             break;
         default:
             break;
@@ -144,7 +152,15 @@ QPointF RenderArea::compute_fancy(float t)
     return QPointF(x, y);
 
 }
+QPointF RenderArea::compute_starfish(float t)
+{
+    float R = 5,r = 3,d = 5;
+    float c = R-r;float e = (R-r)/r;
+    float x = c * cos(t) + d * cos(t * e);
+    float y = c * sin(t) - d * sin(t * e);
+    return QPointF(x, y);
 
+}
 void RenderArea::paintEvent(QPaintEvent *event)
 {
     Q_UNUSED(event);
@@ -173,4 +189,11 @@ void RenderArea::paintEvent(QPaintEvent *event)
         painter.drawLine(pixel, prevPixel);
         prevPixel = pixel;
     }
+    QPointF point = compute(mIntervalLength);
+    QPoint pixel;
+    pixel.setX(point.x() * mScale + center.x());
+    pixel.setY(point.y() * mScale + center.y());
+
+    painter.drawLine(pixel, prevPixel);
+
 }

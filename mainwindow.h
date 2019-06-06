@@ -41,6 +41,8 @@ private slots:
 
     void on_btnCircle_clicked();
 
+    void on_btnStarfish_clicked();
+
 private:
     void update_ui();
 

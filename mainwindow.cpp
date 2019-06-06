@@ -118,3 +118,10 @@ void MainWindow::on_btnCircle_clicked()
     this->ui->renderArea->repaint();
     update_ui();
 }
+
+void MainWindow::on_btnStarfish_clicked()
+{
+    this->ui->renderArea->setShape(RenderArea::Starfish);
+    this->ui->renderArea->repaint();
+    update_ui();
+}
