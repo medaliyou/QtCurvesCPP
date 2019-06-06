@@ -115,6 +115,20 @@
        </widget>
       </item>
       <item>
+       <widget class="QPushButton" name="btnCloud">
+        <property name="text">
+         <string>Cloud 1</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="btnCloud2">
+        <property name="text">
+         <string>Cloud 2</string>
+        </property>
+       </widget>
+      </item>
+      <item>
        <layout class="QHBoxLayout" name="horizontalLayout">
         <item>
          <widget class="QLabel" name="label">
